@@ -1,5 +1,0 @@
-git clone ${git.dest} @{args} 
-git branch D:\Developpement\Scripts_UEM\bull @{args} 
-git remote D:\Developpement\Scripts_UEM\bull @{args} 
-git remote D:\Developpement\Scripts_UEM\bull @{args} 
-git push D:\Developpement\Scripts_UEM\bull @{args} 
