@@ -1,0 +1,222 @@
+<?xml version="1.0"?>
+	<!--
+		======================================================================
+		ANT Macrodef Build Script - Runs various GitHub tasks Author: Newtriks
+		<simon@newtriks.com> Date: 6th March 2010 This script is based on code
+		written by: Mark Lowe <melowe@gmail.com> Tom Robinson
+		<http://tlrobinson.net> Scripts ripped from:
+		<http://tlrobinson.net/blog/2008/11/13/ant-tasks-for-git/> and Comment
+		by Timo on the above URL
+		======================================================================
+	-->
+<project>
+
+<property environment="env"></property>
+
+
+	<!--
+		= = = = = = = = = = = = = = = = = macrodef: git = = = = = = = = = = =
+		= = = = = =
+	-->
+	<macrodef name="git">
+		<attribute name="command" />
+		<attribute name="dir" default="" />
+		<element name="args" optional="true" />
+		<sequential>
+			<echo file="GIT_COMMAND_LOG" message="git @{command} @{dir} @{args} &#xa;"
+				append="yes" />
+			<exec executable="${env.GITHOME}\bin\git.exe" dir="@{dir}">
+				<env key="PATH" path="${env.PATH}:${env.GITHOME}/mingw/bin"/>			
+				<arg value="@{command}" />
+				<args />
+			</exec>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-init">
+		<attribute name="repository" />
+		<sequential>
+			<git command="init">
+				<args>
+					<arg value="@{repository}" />
+				</args>
+			</git>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-add">
+		<attribute name="path" />
+		<attribute name="target" />
+		<sequential>
+			<git command="add" dir="@{path}">
+				<args>
+					<arg value="@{target}" />
+				</args>
+			</git>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-commit">
+		<attribute name="path" />
+		<attribute name="message" />
+		<sequential>
+			<git command="commit" dir="@{path}">
+				<args>
+					<arg value="@{message}" />
+				</args>
+			</git>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-clone-pull">
+		<attribute name="repository" />
+		<attribute name="dest" />
+		<attribute name="remotebranchname" />
+		<attribute name="localbranchname" />
+		<sequential>
+			<git command="clone" dir="@{dest}" >
+				<args>
+					<arg value="-b" />
+					<arg value="@{remotebranchname}" />
+					<arg value="@{repository}" />
+					<arg value="@{localbranchname}" />
+				</args>
+			</git>
+			<git command="pull" dir="@{dest}/@{localbranchname}" >
+			<args>
+				<arg value="origin" />
+				<arg value="@{remotebranchname}:refs/heads/@{localbranchname}" />
+			</args>
+			</git>
+		</sequential>
+	</macrodef>
+	<!-- path est le path de la branche locale -->
+	<!-- branch est le nom de la branche à créer en remote -->
+	<!-- repository est l'url du repository remote -->
+	<macrodef name="git-remote-add">
+		<attribute name="path" />
+		<attribute name="branch" />
+		<attribute name="repository" />
+		<sequential>
+			<echo file="DUMP" message="branch: @{branch} repos: @{repository}" />
+			<git command="remote" dir="@{path}">
+				<args>
+					<arg value="add" />
+					<arg value="@{branch}" />
+					<arg value="@{repository}" />
+				</args>
+			</git>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-push">
+		<attribute name="path" />
+		<attribute name="branch" />
+		<attribute name="head" />
+		<sequential>
+			<git command="push" dir="@{path}">
+				<args>
+					<arg value="@{branch}" />
+					<arg value="@{head}" />
+				</args>
+			</git>
+		</sequential>
+	</macrodef>
+	<macrodef name="test">
+		<attribute name="path" default="hello" />
+		<sequential>
+			<fail message="fail">
+				<condition>
+					<not>
+						<contains string="@{path}" substring="hello" />
+					</not>
+				</condition>
+			</fail>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-revision">
+		<attribute name="path" />
+		<attribute name="output" />
+		<sequential>
+			<exec executable="git" outputproperty="head" dir="@{path}">
+				<arg value="rev-parse" />
+				<arg value="HEAD" />
+			</exec>
+			<echo file="GIT_REVISION_LOG" message="Found revision: ${head}" />
+			<exec executable="git" outputproperty="dirty">
+				<arg value="diff" />
+				<arg value="--shortstatt" />
+			</exec>
+			<condition property="@{output}" value="${head}" else="${head} (dirty)">
+				<equals arg1="${dirty}" arg2="" />
+			</condition>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-branch">
+		<!-- localrepositorypath est le path du repository GIT local -->
+		<!-- localbranchname est le nom de la branche locale -->
+		<!-- remotebranchname est le nom de la branche remote à créer -->
+		<!-- url.push est l'URL git pour faire des push -->
+		<attribute name="localrepositorypath" />
+		<attribute name="localbranchname" />
+		<attribute name="remotebranchname" />
+		<attribute name="url.push" />
+		<sequential>
+			<git command="branch" dir="@{localrepositorypath}">
+				<args>
+					<arg value="@{localbranchname}" />
+				</args>
+			</git>
+				<git-remote-add branch="@{localbranchname}" path="@{localrepositorypath}" repository="@{url.push}" >
+				</git-remote-add>
+
+			<git command="remote" dir="@{localrepositorypath}" >
+				<args>
+					<arg value="set-url" />
+					<arg value="--push" />
+					<arg value="@{localbranchname}" />
+					<arg value="@{url.push}" />
+				</args>
+			</git>
+			
+			<git command="push" dir="@{localrepositorypath}" >
+				<args>
+					<arg value="@{localbranchname}" />
+					<arg value="@{remotebranchname}:refs/heads/@{localbranchname}" />
+				</args>
+			</git>
+		</sequential>
+	</macrodef>
+	<macrodef name="git-tag">
+		<!-- localrepositorypath est le path du repository GIT local -->
+		<!-- localtagname est le nom du tag local -->
+		<!-- remotetagname est le nom du tag remote à créer -->
+		<!-- url.push est l'URL git pour faire des push -->
+		<!-- url.push est l'URL git pour faire des push -->
+		<attribute name="localrepositorypath" />
+		<attribute name="localtagname" />
+		<attribute name="remotetagname" />
+		<attribute name="url.push" />
+		<sequential>
+			<git command="tag" dir="@{localrepositorypath}">
+				<args>
+					<arg value="@{localtagname}" />
+				</args>
+			</git>
+
+			<git-remote-add branch="@{localtagname}" path="@{localrepositorypath}" repository="@{url.push}" >
+			</git-remote-add>
+
+			<git command="remote" dir="@{localrepositorypath}" >
+				<args>
+					<arg value="set-url" />
+					<arg value="--push" />
+					<arg value="@{localtagname}" />
+					<arg value="@{url.push}" />
+				</args>
+			</git>
+			<git command="push" dir="@{localrepositorypath}" >
+				<args>
+					<arg value="@{localtagname}" />
+					<arg value="@{remotetagname}:refs/tags/@{localtagname}" />
+				</args>
+			</git>
+		</sequential>
+	</macrodef>
+
+</project>
